@@ -4,6 +4,7 @@ import inspect
 from . import gaussian_diffusion as gd
 from .respace import SpacedDiffusion, space_timesteps
 from .unet import SuperResModel, UNetModel
+from .new_model import DiffusionNet
 
 NUM_CLASSES = 1000
 
@@ -36,25 +37,25 @@ def model_and_diffusion_defaults():
 
 
 def create_model_and_diffusion(
-    image_size,
-    class_cond,
-    learn_sigma,
-    sigma_small,
-    num_channels,
-    num_res_blocks,
-    num_heads,
-    num_heads_upsample,
-    attention_resolutions,
-    dropout,
-    diffusion_steps,
-    noise_schedule,
-    timestep_respacing,
-    use_kl,
-    predict_xstart,
-    rescale_timesteps,
-    rescale_learned_sigmas,
-    use_checkpoint,
-    use_scale_shift_norm,
+        image_size,
+        class_cond,
+        learn_sigma,
+        sigma_small,
+        num_channels,
+        num_res_blocks,
+        num_heads,
+        num_heads_upsample,
+        attention_resolutions,
+        dropout,
+        diffusion_steps,
+        noise_schedule,
+        timestep_respacing,
+        use_kl,
+        predict_xstart,
+        rescale_timesteps,
+        rescale_learned_sigmas,
+        use_checkpoint,
+        use_scale_shift_norm,
 ):
     model = create_model(
         image_size,
@@ -83,18 +84,70 @@ def create_model_and_diffusion(
     return model, diffusion
 
 
+def new_model_and_diffusion_defaults():
+    """
+    Defaults for image training.
+    """
+    return dict(
+        channels=[8, 16, 32, 64, 128],
+        embed_dim=256,
+        diffusion_steps=1000,
+        learn_sigma=False,
+        sigma_small=False,
+        noise_schedule="linear",
+        timestep_respacing="",
+        use_kl=False,
+        predict_xstart=False,
+        rescale_timesteps=False,
+        rescale_learned_sigmas=True,
+    )
+
+
+def create_new_model_and_diffusion(
+        channels,
+        embed_dim,
+        diffusion_steps,
+        learn_sigma,
+        sigma_small,
+        noise_schedule,
+        timestep_respacing,
+        use_kl,
+        predict_xstart,
+        rescale_timesteps,
+        rescale_learned_sigmas,
+):
+    model = DiffusionNet(
+        channels=channels,
+        embed_dim=embed_dim,
+        noise_schedule=noise_schedule,
+        diffusion_steps=diffusion_steps,
+    )
+    diffusion = create_gaussian_diffusion(
+        steps=diffusion_steps,
+        learn_sigma=learn_sigma,
+        sigma_small=sigma_small,
+        noise_schedule=noise_schedule,
+        use_kl=use_kl,
+        predict_xstart=predict_xstart,
+        rescale_timesteps=rescale_timesteps,
+        rescale_learned_sigmas=rescale_learned_sigmas,
+        timestep_respacing=timestep_respacing,
+    )
+    return model, diffusion
+
+
 def create_model(
-    image_size,
-    num_channels,
-    num_res_blocks,
-    learn_sigma,
-    class_cond,
-    use_checkpoint,
-    attention_resolutions,
-    num_heads,
-    num_heads_upsample,
-    use_scale_shift_norm,
-    dropout,
+        image_size,
+        num_channels,
+        num_res_blocks,
+        learn_sigma,
+        class_cond,
+        use_checkpoint,
+        attention_resolutions,
+        num_heads,
+        num_heads_upsample,
+        use_scale_shift_norm,
+        dropout,
 ):
     if image_size == 256:
         channel_mult = (1, 1, 2, 2, 4, 4)
@@ -137,25 +190,25 @@ def sr_model_and_diffusion_defaults():
 
 
 def sr_create_model_and_diffusion(
-    large_size,
-    small_size,
-    class_cond,
-    learn_sigma,
-    num_channels,
-    num_res_blocks,
-    num_heads,
-    num_heads_upsample,
-    attention_resolutions,
-    dropout,
-    diffusion_steps,
-    noise_schedule,
-    timestep_respacing,
-    use_kl,
-    predict_xstart,
-    rescale_timesteps,
-    rescale_learned_sigmas,
-    use_checkpoint,
-    use_scale_shift_norm,
+        large_size,
+        small_size,
+        class_cond,
+        learn_sigma,
+        num_channels,
+        num_res_blocks,
+        num_heads,
+        num_heads_upsample,
+        attention_resolutions,
+        dropout,
+        diffusion_steps,
+        noise_schedule,
+        timestep_respacing,
+        use_kl,
+        predict_xstart,
+        rescale_timesteps,
+        rescale_learned_sigmas,
+        use_checkpoint,
+        use_scale_shift_norm,
 ):
     model = sr_create_model(
         large_size,
@@ -185,18 +238,18 @@ def sr_create_model_and_diffusion(
 
 
 def sr_create_model(
-    large_size,
-    small_size,
-    num_channels,
-    num_res_blocks,
-    learn_sigma,
-    class_cond,
-    use_checkpoint,
-    attention_resolutions,
-    num_heads,
-    num_heads_upsample,
-    use_scale_shift_norm,
-    dropout,
+        large_size,
+        small_size,
+        num_channels,
+        num_res_blocks,
+        learn_sigma,
+        class_cond,
+        use_checkpoint,
+        attention_resolutions,
+        num_heads,
+        num_heads_upsample,
+        use_scale_shift_norm,
+        dropout,
 ):
     _ = small_size  # hack to prevent unused variable
 
@@ -228,16 +281,16 @@ def sr_create_model(
 
 
 def create_gaussian_diffusion(
-    *,
-    steps=1000,
-    learn_sigma=False,
-    sigma_small=False,
-    noise_schedule="linear",
-    use_kl=False,
-    predict_xstart=False,
-    rescale_timesteps=False,
-    rescale_learned_sigmas=False,
-    timestep_respacing="",
+        *,
+        steps=1000,
+        learn_sigma=False,
+        sigma_small=False,
+        noise_schedule="linear",
+        use_kl=False,
+        predict_xstart=False,
+        rescale_timesteps=False,
+        rescale_learned_sigmas=False,
+        timestep_respacing="",
 ):
     betas = gd.get_named_beta_schedule(noise_schedule, steps)
     if use_kl:
