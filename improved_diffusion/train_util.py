@@ -243,7 +243,7 @@ class TrainLoop:
         zero_grad(self.model_params)
         batch = batch.to(dist_util.dev())
         dict_cond = {
-            "c": cond.to(dist_util.dev())
+            "c": cond.to(dist_util.dev()) if cond else None
         }
 
         t, weights = self.schedule_sampler.sample(batch.shape[0], dist_util.dev())

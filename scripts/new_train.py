@@ -6,9 +6,12 @@ import argparse
 
 from improved_diffusion import dist_util, logger
 from improved_diffusion.new_datasets import load_random_new_data
+from improved_diffusion.image_datasets import load_data
 from improved_diffusion.resample import create_named_schedule_sampler
 from improved_diffusion.script_util import (
     create_new_model_and_diffusion,
+    create_model_and_diffusion,
+    model_and_diffusion_defaults,
     new_model_and_diffusion_defaults,
     args_to_dict,
     add_dict_to_argparser,
@@ -22,21 +25,24 @@ def main():
     logger.configure()
 
     logger.log("creating model and diffusion...")
-    model, diffusion = create_new_model_and_diffusion(
-        **args_to_dict(args, new_model_and_diffusion_defaults().keys())
+    # model, diffusion = create_new_model_and_diffusion(
+    #     **args_to_dict(args, new_model_and_diffusion_defaults().keys())
+    # )
+    model, diffusion = create_model_and_diffusion(
+        **args_to_dict(args, model_and_diffusion_defaults().keys())
     )
 
     model.to(dist_util.dev())
     schedule_sampler = create_named_schedule_sampler(args.schedule_sampler, diffusion)
 
     logger.log("creating data loader...")
-    # data = load_data(
-    #     data_dir=args.data_dir,
-    #     batch_size=args.batch_size,
-    #     image_size=args.image_size,
-    #     class_cond=args.class_cond,
-    # )
-    data = load_random_new_data(args.batch_size)
+    data = load_data(
+        data_dir=args.data_dir,
+        batch_size=args.batch_size,
+        image_size=args.image_size,
+        class_cond=args.class_cond,
+    )
+    # data = load_random_new_data(args.batch_size)
 
     logger.log("training...")
     TrainLoop(
@@ -76,7 +82,7 @@ def create_argparser():
         fp16_scale_growth=1e-3,
         epoch=20,
     )
-    defaults.update(new_model_and_diffusion_defaults())
+    defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()
     add_dict_to_argparser(parser, defaults)
     return parser

@@ -4,6 +4,7 @@ from torch import nn
 from . import gaussian_diffusion as gd
 from . import dist_util
 
+
 class GaussianFourierProjection(nn.Module):
     def __init__(self, embed_dim, scale=30):
         super().__init__()
@@ -68,9 +69,10 @@ class DiffusionNet(nn.Module):
         self.betas = betas
 
     def forward(self, x, t, c):
+        print(f"x{x.shape} t{t.shape}")
         x = self.linear(x)
         x = x.view(-1, 8, 64)
-        embed = self.act(self.time_embed(t)) + self.class_embed(c)
+        embed = self.act(self.time_embed(t)) + self.class_embed(c) if c is not None else self.act(self.time_embed(t))
         ## encoding path
         h1 = self.conv1(x) + self.dense1(embed)
         h1 = self.act(self.gnorm1(h1))
@@ -91,5 +93,5 @@ class DiffusionNet(nn.Module):
         h = h.view(-1, 512)
         h = self.tlinear(h)
         ## normalize
-        h = h / torch.sqrt(self.betas[t.long(),None].to(dist_util.dev()))
+        h = h / torch.sqrt(self.betas[t.long(), None].to(dist_util.dev()))
         return h
