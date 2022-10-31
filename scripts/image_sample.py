@@ -42,10 +42,11 @@ def main():
     while len(all_images) * args.batch_size < args.num_samples:
         model_kwargs = {}
         if args.class_cond:
-            classes = th.randint(
-                low=0, high=NUM_CLASSES, size=(args.batch_size,), device=dist_util.dev()
-            )
-            model_kwargs["y"] = classes
+            # classes = th.randint(
+            #     low=0, high=NUM_CLASSES, size=(args.batch_size,), device=dist_util.dev()
+            # )
+            classes = th.zeros(args.batch_size, device=dist_util.dev()).long().fill_(args.class_type)
+            model_kwargs["c"] = classes
         sample_fn = (
             diffusion.p_sample_loop if not args.use_ddim else diffusion.ddim_sample_loop
         )
@@ -91,10 +92,11 @@ def main():
 def create_argparser():
     defaults = dict(
         clip_denoised=True,
-        num_samples=10000,
+        num_samples=1000,
         batch_size=16,
         use_ddim=False,
         model_path="",
+        class_type=0,
     )
     defaults.update(model_and_diffusion_defaults())
     parser = argparse.ArgumentParser()

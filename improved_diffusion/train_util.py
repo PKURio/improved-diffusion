@@ -1,6 +1,7 @@
 import copy
 import functools
 import os
+import pdb
 import time
 
 import blobfile as bf
@@ -185,8 +186,11 @@ class TrainLoop:
             t0 = time.time()
             for idx, (batch, cond) in enumerate(self.data):
                 self.run_step(batch, cond)
-                if idx % self.log_interval == 0:
+                if idx and (idx % self.log_interval == 0):
                     logger.dumpkvs()
+                # Save the last checkpoint if it wasn't already saved.
+                if self.step and (self.step % self.save_interval == 0):
+                    self.save()
                 self.step += 1
             t1 = time.time()
             print(f"epoch {epoch + 1} finished, elapsed time {format(t1 - t0, '.2f')}s")
@@ -243,7 +247,7 @@ class TrainLoop:
         zero_grad(self.model_params)
         batch = batch.to(dist_util.dev())
         dict_cond = {
-            "c": cond.to(dist_util.dev()) if cond else None
+            "c": cond["c"].to(dist_util.dev()) if cond else None
         }
 
         t, weights = self.schedule_sampler.sample(batch.shape[0], dist_util.dev())

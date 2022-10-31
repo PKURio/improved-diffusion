@@ -1,3 +1,5 @@
+import pdb
+
 from PIL import Image
 import blobfile as bf
 from mpi4py import MPI
@@ -6,7 +8,7 @@ from torch.utils.data import DataLoader, Dataset
 
 
 def load_data(
-    *, data_dir, batch_size, image_size, class_cond=False, deterministic=False
+    *, data_dir, use_zhongyan, batch_size, image_size, class_cond=False, deterministic=False
 ):
     """
     For a dataset, create a generator over (images, kwargs) pairs.
@@ -17,6 +19,7 @@ def load_data(
     and the values are integer tensors of class labels.
 
     :param data_dir: a dataset directory.
+    :param use_zhongyan: whether to use zhongyan images.
     :param batch_size: the batch size of each returned pair.
     :param image_size: the size to which images are resized.
     :param class_cond: if True, include a "y" key in returned dicts for class
@@ -26,7 +29,15 @@ def load_data(
     """
     if not data_dir:
         raise ValueError("unspecified data directory")
-    all_files = _list_image_files_recursively(data_dir)
+    data_dir_list = data_dir.split('|')
+    if data_dir_list[-1] == '': # drop last empty item
+        data_dir_list = data_dir_list[:-1]
+    print(f"length of data directory: {len(data_dir_list)}")
+
+    all_files = []
+    for dir_name in data_dir_list:
+        all_files += _list_image_files_recursively(dir_name)
+
     classes = None
     if class_cond:
         # Assume classes are the first part of the filename,
@@ -34,7 +45,7 @@ def load_data(
         class_names = [bf.basename(path).split("_")[0] for path in all_files]
         sorted_classes = {x: i for i, x in enumerate(sorted(set(class_names)))}
         classes = [sorted_classes[x] for x in class_names]
-    dataset = ImageDataset(
+    dataset = MyImageDataset(
         image_size,
         all_files,
         classes=classes,
@@ -102,5 +113,33 @@ class ImageDataset(Dataset):
 
         out_dict = {}
         if self.local_classes is not None:
-            out_dict["y"] = np.array(self.local_classes[idx], dtype=np.int64)
+            # out_dict["y"] = np.array(self.local_classes[idx], dtype=np.int64)
+            out_dict["c"] = np.array(self.local_classes[idx], dtype=np.int64)
+        return np.transpose(arr, [2, 0, 1]), out_dict
+
+class MyImageDataset(Dataset):
+    def __init__(self, resolution, image_paths, classes=None, shard=0, num_shards=1):
+        super().__init__()
+        self.resolution = resolution
+        self.local_images = image_paths[shard:][::num_shards]
+        self.local_classes = None if classes is None else classes[shard:][::num_shards]
+
+    def __len__(self):
+        return len(self.local_images)
+
+    def __getitem__(self, idx):
+        path = self.local_images[idx]
+        with bf.BlobFile(path, "rb") as f:
+            pil_image = Image.open(f)
+            pil_image.load()
+
+        arr = np.array(pil_image.convert("RGB"))
+        ## cut (e.g. 128x256x3 -> 128x128x3)
+        arr = arr[:,:self.resolution]
+        arr = arr.astype(np.float32) / 127.5 - 1
+
+        out_dict = {}
+        if self.local_classes is not None:
+            # out_dict["y"] = np.array(self.local_classes[idx], dtype=np.int64)
+            out_dict["c"] = np.array(self.local_classes[idx], dtype=np.int64)
         return np.transpose(arr, [2, 0, 1]), out_dict

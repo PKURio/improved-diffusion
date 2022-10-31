@@ -38,6 +38,7 @@ def main():
     logger.log("creating data loader...")
     data = load_data(
         data_dir=args.data_dir,
+        use_zhongyan=args.use_zhongyan,
         batch_size=args.batch_size,
         image_size=args.image_size,
         class_cond=args.class_cond,
@@ -75,7 +76,8 @@ def create_argparser():
         batch_size=1,
         microbatch=-1,  # -1 disables microbatches
         ema_rate="0.9999",  # comma-separated list of EMA values
-        log_interval=10,
+        log_interval=200,
+        use_zhongyan=False,
         save_interval=10000,
         resume_checkpoint="",
         use_fp16=False,
